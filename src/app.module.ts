@@ -25,6 +25,7 @@ import configuration from './config/configuration';
         port: +configService.get<number>('database.port'),
         username: configService.get('database.username'),
         password: configService.get('database.password'),
+        schema: 'identity',
         database: configService.get('database.name'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true, //Don't use this option for prod mode
