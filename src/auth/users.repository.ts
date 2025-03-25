@@ -13,7 +13,7 @@ export class UserRepository extends Repository<UserEntity> {
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './user.entity';
+import { User } from './entities/user.entity';
 import { AuthCredentialsDto } from './dto/auth.credentials.dto';
 import { ConflictException, InternalServerErrorException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';

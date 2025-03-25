@@ -17,7 +17,7 @@ export class AuthService {
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './user.entity';
+import { User } from './entities/user.entity';
 import { UsersRepository } from './users.repository';
 import { AuthCredentialsDto } from './dto/auth.credentials.dto';
 import * as bcrypt from 'bcrypt';
