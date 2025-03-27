@@ -54,7 +54,7 @@ export class UsersRepository extends Repository<User> {
         const id = userId;
         //Find the user
         const userResult = await this.userRepository.findOne({
-            where: { id }
+            where: { userId }
         });
         if (!userResult) {
         throw new NotFoundException('User not found...');

@@ -1,12 +1,18 @@
 import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
-@Entity({ name: 'refreshtoken'})
+@Entity({ name: 'refreshtoken' })
 export class RefreshToken {
-    @Column({nullable: false})
-    token: string;
+
+  @PrimaryGeneratedColumn('uuid')
+  refreshTokenId: string;
+
+  @Column({ nullable: false })
+  token: string;
 
   @Column('uuid')
   userId: string
-  @Column({nullable: true})
+
+  @Column({ nullable: true })
   expiryDate: Date;
+
 }

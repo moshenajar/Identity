@@ -9,11 +9,11 @@ import { ChangePasswordDto } from "./dtos/change-password.dto";
 import { ResetPasswordDto } from "./dtos/reset-password.dto";
 import { ForgotPasswordDto } from "./dtos/forgot-password.dto";
 import { AuthenticationGuard } from "./guards/authentication.guard";
-//import { User } from "./get-user.decorator";
+import { LoginDto } from "./dtos/login.dto";
 
 @Controller('auth')
 export class AuthController {
-    constructor(private authService: AuthService){}
+    constructor(private authService: AuthService) { }
 
     @Post('signup')
     async signUp(@Body() authCredentialsDto: AuthCredentialsDto): Promise<void> {
@@ -21,8 +21,8 @@ export class AuthController {
     }
 
     @Post('login')
-    async signIn(@Body() authCredentialsDto: AuthCredentialsDto): Promise<{ accessToken: string }> {
-        return this.authService.signIn(authCredentialsDto);
+    async signIn(@Body() loginDto: LoginDto) {
+        return this.authService.login(loginDto);
     }
 
     @Post('refresh')
@@ -35,12 +35,12 @@ export class AuthController {
     async changePassword(
         @Body() changePasswordDto: ChangePasswordDto,
         @Req() req,
-        ) {
-            return this.authService.changePassword(
+    ) {
+        return this.authService.changePassword(
             req.userId,
             changePasswordDto.oldPassword,
             changePasswordDto.newPassword,
-            );
+        );
     }
 
     @Post('forgot-password')
@@ -53,8 +53,8 @@ export class AuthController {
         @Body() resetPasswordDto: ResetPasswordDto,
     ) {
         return this.authService.resetPassword(
-        resetPasswordDto.newPassword,
-        resetPasswordDto.resetToken,
+            resetPasswordDto.newPassword,
+            resetPasswordDto.resetToken,
         );
     }
 
@@ -67,7 +67,7 @@ export class AuthController {
     @Post('/validateToken')
     @UseGuards(AuthGuard())
     validateToken(@GetUser() user: User) {
-       return user;
+        return user;
     }
 
 }

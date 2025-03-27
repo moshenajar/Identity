@@ -16,18 +16,19 @@ export class AuthService {
 }*/
 
 import { Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import {  InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './repositories/users.repository';
 import { AuthCredentialsDto } from './dtos/auth.credentials.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './jwt-payload.interface';
-import { AzureActiveDirectoryAccessTokenAuthentication } from 'typeorm/driver/sqlserver/authentication/AzureActiveDirectoryAccessTokenAuthentication';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { nanoid } from 'nanoid';
 import { MailService } from 'src/services/mail.service';
+import { v4 as uuidv4 } from 'uuid';
+import { LoginDto } from './dtos/login.dto';
+import { nanoid } from 'nanoid';
 
 @Injectable()
 export class AuthService {
@@ -42,37 +43,41 @@ export class AuthService {
         return this.usersRepository.createUser(authCredentialsDto);
     }
 
-    async signIn(authCredentialsDto: AuthCredentialsDto): Promise<{ accessToken: string }> {
-        const { email, password } = authCredentialsDto;
+    async login(loginDto: LoginDto) {
+        const { email, password } = loginDto;
         const user = await this.usersRepository.findOne({
             where: { email }
         });
 
         if (user && (await bcrypt.compare(password, user.password))) {
-            const accessToken: string= await this.generateUserTokens(email);
-            return { accessToken };
+            //Generate JWT tokens
+            const tokens = await this.generateUserTokens(user.userId);
+            return {
+                ...tokens,
+                userId: user.userId,
+            };
         } else {
             throw new UnauthorizedException('Please check your login credentials');
         }
     }
 
     async refreshTokens(refreshToken: string) {
-        const token:RefreshToken = await this.refreshTokenRepository.findByRefreshTokenValid(refreshToken);
-    
+        const token: RefreshToken = await this.refreshTokenRepository.findByRefreshTokenValid(refreshToken);
+
         if (!token) {
-          throw new UnauthorizedException('Refresh Token is invalid');
+            throw new UnauthorizedException('Refresh Token is invalid');
         }
 
         const user = await this.usersRepository.findOne({
-            where: { id: token.userId }
+            where: { userId: token.userId }
         });
 
         if (!user) {
             throw new UnauthorizedException('Refresh Token is invalid');
-          }
+        }
 
-        return this.generateUserTokens(user.email);
-      }
+        return this.generateUserTokens(user.userId);
+    }
 
     async changePassword(email, oldPassword: string, newPassword: string) {
         const user = await this.usersRepository.findOne({
@@ -80,25 +85,25 @@ export class AuthService {
         });
 
         if (!user) {
-          throw new NotFoundException('User not found...');
+            throw new NotFoundException('User not found...');
         }
-    
+
         //Compare the old password with the password in DB
         const passwordMatch = await bcrypt.compare(oldPassword, user.password);
         if (!passwordMatch) {
-          throw new UnauthorizedException('Wrong credentials');
+            throw new UnauthorizedException('Wrong credentials');
         }
-    
+
         //Change user's password
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-        await this.usersRepository.update({ id: user.id }, {
+        await this.usersRepository.update({ userId: user.userId }, {
             password: hashedPassword,
-          })
+        })
 
         return "User Updated Successfully";
-      }
+    }
 
 
     async forgotPassword(email: string) {
@@ -114,9 +119,9 @@ export class AuthService {
 
             const resetToken = nanoid(64);
             await this.refreshTokenRepository.create({
-            token: resetToken,
-            userId: user.id,
-            expiryDate,
+                token: resetToken,
+                userId: user.userId,
+                expiryDate,
             });
             //Send the link to the user by email
             this.mailService.sendPasswordResetEmail(email, resetToken);
@@ -127,35 +132,79 @@ export class AuthService {
 
     async resetPassword(newPassword: string, resetToken: string) {
         //Find a valid reset token document
-        const token = await this.refreshTokenRepository.findOneAndDelete({
-          token: resetToken,
-          expiryDate: { $gte: new Date() },
-        });
-    
+        const token = await this.refreshTokenRepository.findOneBy({
+            token: resetToken,
+            expiryDate: new Date()
+        })
+
         if (!token) {
-          throw new UnauthorizedException('Invalid link');
+            throw new UnauthorizedException('Invalid link');
         }
-    
+
+        await this.refreshTokenRepository.remove(token);
+
         //Change user password (MAKE SURE TO HASH!!)
-        const user = await this.usersRepository.findOne({
-            where: { id: token.userId }
+        const user = await this.usersRepository.findOneBy({
+            userId: token.userId
         });
-        
+
         if (!user) {
-          throw new InternalServerErrorException();
+            throw new InternalServerErrorException();
         }
-    
-        user.password = await bcrypt.hash(newPassword, 10);
-        await user.save();
-      }
 
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    async generateUserTokens(email: string):Promise<string> {
-        const payload: JwtPayload = { email };
-        const accessToken: string = await this.jwtService.sign(payload);
-        return  accessToken ;
+        user.password = hashedPassword;
+
+        await this.usersRepository.save(user);
+
     }
-    
+
+    async generateUserTokens(userId) {
+        const accessToken = this.jwtService.sign({ userId }, { expiresIn: '10h' });
+        const refreshToken = uuidv4();
+
+        await this.storeRefreshToken(refreshToken, userId);
+        return {
+            accessToken,
+            refreshToken,
+        };
+    }
+
+    async storeRefreshToken(token: string, userId: string) {
+        // Calculate expiry date 3 days from now
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 3);
+
+        const refreshToken = await this.refreshTokenRepository.findOneBy({
+            userId: userId
+        })
+
+        if (refreshToken) {
+            refreshToken.expiryDate = expiryDate;
+
+            await this.refreshTokenRepository.save(refreshToken);
+            return;
+
+        }
+
+
+        await this.refreshTokenRepository.create({
+            token: token,
+            userId: userId,
+            expiryDate,
+        });
+
+    }
+
+
+    /* async generateUserTokens(email: string): Promise<string> {
+         const payload: JwtPayload = { email };
+         const accessToken: string = await this.jwtService.sign(payload);
+         return accessToken;
+     }*/
+
 
     /*findAll(): Promise<UserEntity[]> {
         return this.userRepository.find();

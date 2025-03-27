@@ -7,6 +7,9 @@ import { AuthService } from './auth.service';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
+import { RefreshTokenRepository } from './repositories/refresh-token.repository';
+import { MailService } from 'src/services/mail.service';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 @Module({
     /*imports: [TypeOrmModule.forFeature([UserEntity])],
@@ -20,8 +23,8 @@ import { JwtStrategy } from './jwt.strategy';
                 expiresIn: 3600
             },
         }),
-        TypeOrmModule.forFeature([User])], // here we provide the TypeOrm support as usual, specifically for our UserEntity in this case
-    providers: [AuthService, JwtStrategy,UsersRepository], // here we provide our custom repo
+        TypeOrmModule.forFeature([User,RefreshToken])], // here we provide the TypeOrm support as usual, specifically for our UserEntity in this case
+    providers: [AuthService, MailService, JwtStrategy,UsersRepository, RefreshTokenRepository], // here we provide our custom repo
     controllers: [AuthController],
     exports: [JwtStrategy, PassportModule]
     //exports: [AuthService, UsersRepository] // add this only if you use service and/or custom repo within another module/service
