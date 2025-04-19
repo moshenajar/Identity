@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Put, Req, UnauthorizedException, UseGuards  } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { AuthCredentialsDto } from "./dtos/auth.credentials.dto";
 import { AuthGuard } from "@nestjs/passport";
@@ -11,24 +11,54 @@ import { ForgotPasswordDto } from "./dtos/forgot-password.dto";
 import { AuthenticationGuard } from "./guards/authentication.guard";
 import { LoginDto } from "./dtos/login.dto";
 
+import { MessagePattern, Payload } from '@nestjs/microservices';
+import { response } from "express";
+import { UtilsService } from "./utils/utils-service";
+
 @Controller('auth')
 export class AuthController {
-    constructor(private authService: AuthService) { }
+    constructor(
+        private authService: AuthService,
+        private utilsService: UtilsService,
+    ) { }
 
-    @Post('signup')
-    async signUp(@Body() authCredentialsDto: AuthCredentialsDto): Promise<void> {
+    @MessagePattern('signup')
+    async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
         return this.authService.signUp(authCredentialsDto);
     }
 
-    @Post('login')
-    async signIn(@Body() loginDto: LoginDto) {
+    @MessagePattern('login')
+    async signIn(loginDto: LoginDto) {
         return this.authService.login(loginDto);
     }
 
-    @Post('refresh')
-    async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
+    @MessagePattern('refresh')
+    async refreshTokens(refreshTokenDto: RefreshTokenDto) {
         return this.authService.refreshTokens(refreshTokenDto.refreshToken);
     }
+
+    @MessagePattern('validateToken')
+    async validateToken(accessToken: string) {
+        return await  this.authService.validateToken(accessToken);
+    }
+
+  
+
+
+    /*@Post('signup')
+    async signUp(@Body() authCredentialsDto: AuthCredentialsDto): Promise<void> {
+        return this.authService.signUp(authCredentialsDto);
+    }*/
+
+   /* @Post('login')
+    async signIn(@Body() loginDto: LoginDto) {
+        return this.authService.login(loginDto);
+    }*/
+
+    /*@Post('refresh')
+    async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
+        return this.authService.refreshTokens(refreshTokenDto.refreshToken);
+    }*/
 
     @UseGuards(AuthenticationGuard)
     @Put('change-password')
@@ -64,10 +94,12 @@ export class AuthController {
         console.log(user);
     }
 
-    @Post('/validateToken')
+    /*@Post('/validateToken')
     @UseGuards(AuthGuard())
     validateToken(@GetUser() user: User) {
         return user;
-    }
+    }*/
+
+    
 
 }

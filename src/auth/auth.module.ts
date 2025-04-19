@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { MailService } from 'src/services/mail.service';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { UtilsService } from './utils/utils-service';
 
 @Module({
     /*imports: [TypeOrmModule.forFeature([UserEntity])],
@@ -24,7 +25,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
             },
         }),
         TypeOrmModule.forFeature([User,RefreshToken])], // here we provide the TypeOrm support as usual, specifically for our UserEntity in this case
-    providers: [AuthService, MailService, JwtStrategy,UsersRepository, RefreshTokenRepository], // here we provide our custom repo
+    providers: [AuthService, MailService, JwtStrategy,UsersRepository, RefreshTokenRepository, UtilsService], // here we provide our custom repo
     controllers: [AuthController],
     exports: [JwtStrategy, PassportModule]
     //exports: [AuthService, UsersRepository] // add this only if you use service and/or custom repo within another module/service

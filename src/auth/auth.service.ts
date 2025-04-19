@@ -15,7 +15,7 @@ export class AuthService {
     }
 }*/
 
-import { Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './repositories/users.repository';
@@ -29,6 +29,7 @@ import { MailService } from 'src/services/mail.service';
 import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dtos/login.dto';
 import { nanoid } from 'nanoid';
+import { UtilsService } from './utils/utils-service';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +37,8 @@ export class AuthService {
         private readonly usersRepository: UsersRepository, // import as usual
         private readonly refreshTokenRepository: RefreshTokenRepository,
         private jwtService: JwtService,
-        private mailService: MailService
+        private mailService: MailService,
+        private utilsService: UtilsService,
     ) { }
 
     async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
@@ -183,7 +185,7 @@ export class AuthService {
 
         if (refreshToken) {
             refreshToken.expiryDate = expiryDate;
-
+            //TODO - dosnt save refresh token
             await this.refreshTokenRepository.save(refreshToken);
             return;
 
@@ -197,6 +199,35 @@ export class AuthService {
         });
 
     }
+
+    async validateToken(accessToken: string) {
+        let userId: string = null;
+        if (!accessToken) {
+            throw new UnauthorizedException('Invalid token');
+        }
+
+        try 
+        {
+            const payload = this.jwtService.verify(accessToken);
+            userId = payload.userId;
+        } 
+        catch (e) 
+        {
+            return this.utilsService.apiResponse(
+                HttpStatus.UNAUTHORIZED,
+                null,
+                [{message:"Invalid Token",property:"validateToken"}]
+            );
+        }
+
+        return this.utilsService.apiResponse(
+            HttpStatus.OK,
+            userId,
+            [{message:"The token is valid",property:"validateToken"}]
+        );
+           
+    }
+    
 
 
     /* async generateUserTokens(email: string): Promise<string> {
