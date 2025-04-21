@@ -81,9 +81,9 @@ export class AuthService {
         return this.generateUserTokens(user.userId);
     }
 
-    async changePassword(email, oldPassword: string, newPassword: string) {
+    async changePassword(userId, oldPassword: string, newPassword: string) {
         const user = await this.usersRepository.findOne({
-            where: { email }
+            where: { userId }
         });
 
         if (!user) {

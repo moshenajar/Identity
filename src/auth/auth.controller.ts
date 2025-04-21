@@ -42,6 +42,15 @@ export class AuthController {
         return await  this.authService.validateToken(accessToken);
     }
 
+    @MessagePattern('changePassword')
+    async changePassword(data : {userId: string, changePasswordDto: ChangePasswordDto}) {
+        return this.authService.changePassword(
+            data.userId,
+            data.changePasswordDto.oldPassword,
+            data.changePasswordDto.newPassword,
+        );
+    }
+
   
 
 
@@ -60,7 +69,7 @@ export class AuthController {
         return this.authService.refreshTokens(refreshTokenDto.refreshToken);
     }*/
 
-    @UseGuards(AuthenticationGuard)
+  /*  @UseGuards(AuthenticationGuard)
     @Put('change-password')
     async changePassword(
         @Body() changePasswordDto: ChangePasswordDto,
@@ -71,7 +80,7 @@ export class AuthController {
             changePasswordDto.oldPassword,
             changePasswordDto.newPassword,
         );
-    }
+    }*/
 
     @Post('forgot-password')
     async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
