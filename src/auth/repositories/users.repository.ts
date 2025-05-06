@@ -27,13 +27,13 @@ export class UsersRepository extends Repository<User> {
     }
 
     async createUser(authCredentialsDto: AuthCredentialsDto): Promise<void> {
-        const { email, password } = authCredentialsDto;
+        const { username, password } = authCredentialsDto;
 
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(password, salt);
 
 
-        const user = this.create({ email, password: hashedPassword});
+        const user = this.create({ username, password: hashedPassword});
         try {
             await this.save(user);
         }catch (error){
@@ -47,7 +47,7 @@ export class UsersRepository extends Repository<User> {
         
     }
 
-    async changePassword(userId,email: string, newPassword: string)
+    async changePassword(userId,username: string, newPassword: string)
     {
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(newPassword, salt);
@@ -59,14 +59,14 @@ export class UsersRepository extends Repository<User> {
         if (!userResult) {
         throw new NotFoundException('User not found...');
         }
-        const user = this.create({ email, password: hashedPassword});
+        const user = this.create({ username, password: hashedPassword});
 
     }
 
     // sample method for demo purposes
-    async findByEmail(email: string): Promise<User> {
+    async findByUserName(username: string): Promise<User> {
         return await this.userRepository.findOne({
-            where: { email }
+            where: { username }
      }); // could also be this.findOneBy({ email });, but depending on your IDE/TS settings, could warn that userRepository is not used though. Up to you to use either of the 2 methods
     }
     

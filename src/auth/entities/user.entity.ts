@@ -6,7 +6,7 @@ export class User{
     userId: string;
 
     @Column({unique:true})
-    email: string;
+    username: string;
 
     @Column()
     password: string;

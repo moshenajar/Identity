@@ -14,6 +14,7 @@ import { LoginDto } from "./dtos/login.dto";
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { response } from "express";
 import { UtilsService } from "./utils/utils-service";
+import { ForgotPasswordOtpDto } from "./dtos/forgot-password-otp.dto";
 
 @Controller('auth')
 export class AuthController {
@@ -22,19 +23,20 @@ export class AuthController {
         private utilsService: UtilsService,
     ) { }
 
-    @MessagePattern('signup')
-    async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
-        return this.authService.signUp(authCredentialsDto);
-    }
-
     @MessagePattern('login')
     async signIn(loginDto: LoginDto) {
         return this.authService.login(loginDto);
     }
 
-    @MessagePattern('refresh')
-    async refreshTokens(refreshTokenDto: RefreshTokenDto) {
-        return this.authService.refreshTokens(refreshTokenDto.refreshToken);
+    @MessagePattern('signup')
+    async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
+        return this.authService.signUp(authCredentialsDto);
+    }
+
+
+    @MessagePattern('refreshToken')
+    async refreshToken(refreshTokenDto: RefreshTokenDto) {
+        return this.authService.refreshToken(refreshTokenDto.refreshToken);
     }
 
     @MessagePattern('validateToken')
@@ -51,7 +53,39 @@ export class AuthController {
         );
     }
 
-  
+    @MessagePattern('forgotPasswordOtp')
+    async forgotPasswordOtp(data :{ forgotPasswordOtpDto: ForgotPasswordOtpDto }){
+        return this.authService.forgotPasswordOtp(data.forgotPasswordOtpDto);
+    }
+
+    @MessagePattern('forgotPassword')
+    async forgotPassword(data: { forgotPasswordDto: ForgotPasswordDto}) {
+        return this.authService.forgotPassword(data.forgotPasswordDto);
+    }
+
+    @MessagePattern('resetPassword')
+    async resetPassword(data: { resetPasswordDto: ResetPasswordDto}) {
+        return this.authService.resetPassword(data.resetPasswordDto);
+    }
+
+    @MessagePattern('getUserByUserId')
+    async getUserByUserId(data: { userId: string}) {
+        return this.authService.getUserByUserId(data.userId);
+    }
+
+
+    @Post('/getUser')
+    @UseGuards(AuthGuard())
+    getUser(@GetUser() user: User) {
+        console.log(user);
+    }
+
+    @MessagePattern('test')
+    async test(data: { hi: string}) {
+        console.log(data.hi);
+        return "by";
+    }
+
 
 
     /*@Post('signup')
@@ -82,12 +116,12 @@ export class AuthController {
         );
     }*/
 
-    @Post('forgot-password')
+    /*@Post('forgot-password')
     async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
         return this.authService.forgotPassword(forgotPasswordDto.email);
-    }
+    }*/
 
-    @Put('reset-password')
+    /*@Put('reset-password')
     async resetPassword(
         @Body() resetPasswordDto: ResetPasswordDto,
     ) {
@@ -95,13 +129,13 @@ export class AuthController {
             resetPasswordDto.newPassword,
             resetPasswordDto.resetToken,
         );
-    }
+    }*/
 
-    @Post('/getUser')
+    /*@Post('/getUser')
     @UseGuards(AuthGuard())
     getUser(@GetUser() user: User) {
         console.log(user);
-    }
+    }*/
 
     /*@Post('/validateToken')
     @UseGuards(AuthGuard())

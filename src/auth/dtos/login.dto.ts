@@ -2,8 +2,7 @@ import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validato
 
 export class LoginDto {
   
-    @IsEmail()
-    email: string;
+    username: string;
 
     @IsString()
     @MinLength(8)

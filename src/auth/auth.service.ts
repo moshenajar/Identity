@@ -30,6 +30,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dtos/login.dto';
 import { nanoid } from 'nanoid';
 import { UtilsService } from './utils/utils-service';
+import { ForgotPasswordDto } from './dtos/forgot-password.dto';
+import { ForgotPasswordOtpDto } from './dtos/forgot-password-otp.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { Observable, of } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -46,9 +50,9 @@ export class AuthService {
     }
 
     async login(loginDto: LoginDto) {
-        const { email, password } = loginDto;
+        const { username, password } = loginDto;
         const user = await this.usersRepository.findOne({
-            where: { email }
+            where: { username }
         });
 
         if (user && (await bcrypt.compare(password, user.password))) {
@@ -63,7 +67,7 @@ export class AuthService {
         }
     }
 
-    async refreshTokens(refreshToken: string) {
+    async refreshToken(refreshToken: string) {
         const token: RefreshToken = await this.refreshTokenRepository.findByRefreshTokenValid(refreshToken);
 
         if (!token) {
@@ -107,35 +111,48 @@ export class AuthService {
         return "User Updated Successfully";
     }
 
+    async forgotPasswordOtp(forgotPasswordOtpDto: ForgotPasswordOtpDto) {
+        
+    }
 
-    async forgotPassword(email: string) {
+    async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+
+        if(forgotPasswordDto.otp != forgotPasswordDto.originalOtp)
+            throw new NotFoundException('Otp not found...');
+
+
+        let userId = forgotPasswordDto.userId;
         //Check that user exists
         const user = await this.usersRepository.findOne({
-            where: { email }
+            where: { userId }
         });
 
-        if (user) {
-            //If user exists, generate password reset link
-            const expiryDate = new Date();
-            expiryDate.setHours(expiryDate.getHours() + 1);
-
-            const resetToken = nanoid(64);
-            await this.refreshTokenRepository.create({
-                token: resetToken,
-                userId: user.userId,
-                expiryDate,
-            });
-            //Send the link to the user by email
-            this.mailService.sendPasswordResetEmail(email, resetToken);
+        if (!user) {
+            throw new NotFoundException('User not found...');
         }
+
+        
+        //If user exists, generate password reset link
+        const expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + 1);
+
+        const resetToken = nanoid(64);
+        await this.refreshTokenRepository.create({
+            token: resetToken,
+            userId: user.userId,
+            expiryDate,
+        });
+        //Send the link to the user by email
+        this.mailService.sendPasswordResetEmail(user.username, resetToken);
+        
 
         return { message: 'If this user exists, they will receive an email' };
     }
 
-    async resetPassword(newPassword: string, resetToken: string) {
+    async resetPassword(resetPasswordDto: ResetPasswordDto) {
         //Find a valid reset token document
         const token = await this.refreshTokenRepository.findOneBy({
-            token: resetToken,
+            token: resetPasswordDto.resetToken,
             expiryDate: new Date()
         })
 
@@ -155,7 +172,7 @@ export class AuthService {
         }
 
         const salt = await bcrypt.genSalt();
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, salt);
 
         user.password = hashedPassword;
 
@@ -210,6 +227,15 @@ export class AuthService {
         {
             const payload = this.jwtService.verify(accessToken);
             userId = payload.userId;
+            const user = await this.usersRepository.findOneBy({
+                userId: userId
+            });
+
+            return this.utilsService.apiResponse<User>(
+                HttpStatus.OK,
+                user,
+                [{message:"The token is valid",property:"validateToken"}]
+            );
         } 
         catch (e) 
         {
@@ -219,13 +245,21 @@ export class AuthService {
                 [{message:"Invalid Token",property:"validateToken"}]
             );
         }
+    }
 
-        return this.utilsService.apiResponse(
+     getUserByUserId(userId: string){
+        const user: User = {
+            userId: '1',
+            username: 'John Doe',
+            password: 'john.doe@example.com',
+          };
+
+          return this.utilsService.apiResponse(
             HttpStatus.OK,
-            userId,
-            [{message:"The token is valid",property:"validateToken"}]
+            {user:user},
+            [{message:"The user is valid",property:"getUserByUserId"}]
         );
-           
+         
     }
     
 
