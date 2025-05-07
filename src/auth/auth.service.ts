@@ -34,6 +34,7 @@ import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ForgotPasswordOtpDto } from './dtos/forgot-password-otp.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { Observable, of } from 'rxjs';
+import { token } from './model/token';
 
 @Injectable()
 export class AuthService {
@@ -45,8 +46,28 @@ export class AuthService {
         private utilsService: UtilsService,
     ) { }
 
-    async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
-        return this.usersRepository.createUser(authCredentialsDto);
+    async signUp(authCredentialsDto: AuthCredentialsDto) {
+        const { username, password } = authCredentialsDto;
+        const user = await this.usersRepository.findOne({
+            where: { username }
+        });
+
+        if (user === null) {
+            this.usersRepository.createUser(authCredentialsDto);
+
+            return this.utilsService.apiResponse(
+                HttpStatus.OK,
+                null,
+                [{ message: "The user is created.", property: "signUp" }]
+            );
+        }
+
+
+        return this.utilsService.apiResponse(
+            HttpStatus.NOT_FOUND,
+            null,
+            [{ message: "Please enter a different username.", property: "signUp" }]
+        );
     }
 
     async login(loginDto: LoginDto) {
@@ -55,15 +76,24 @@ export class AuthService {
             where: { username }
         });
 
-        if (user && (await bcrypt.compare(password, user.password))) {
+        if (user && (await this.comparePasswords(password, user.password))) {
             //Generate JWT tokens
             const tokens = await this.generateUserTokens(user.userId);
-            return {
-                ...tokens,
-                userId: user.userId,
-            };
+
+            return this.utilsService.apiResponse<token>(
+                HttpStatus.OK,
+                {
+                    ...tokens,
+                    userId: user.userId,
+                },
+                [{ message: "", property: "login" }]
+            );
         } else {
-            throw new UnauthorizedException('Please check your login credentials');
+            return this.utilsService.apiResponse(
+                HttpStatus.NOT_FOUND,
+                null,
+                [{ message: "The username or password is incorrect.", property: "login" }]
+            );
         }
     }
 
@@ -91,13 +121,21 @@ export class AuthService {
         });
 
         if (!user) {
-            throw new NotFoundException('User not found...');
+            return this.utilsService.apiResponse(
+                HttpStatus.NOT_FOUND,
+                null,
+                [{ message: "Wrong credentials.", property: "changePassword" }]
+            );
         }
 
         //Compare the old password with the password in DB
         const passwordMatch = await bcrypt.compare(oldPassword, user.password);
         if (!passwordMatch) {
-            throw new UnauthorizedException('Wrong credentials');
+            return this.utilsService.apiResponse(
+                HttpStatus.NOT_FOUND,
+                null,
+                [{ message: "Wrong credentials.", property: "changePassword" }]
+            );
         }
 
         //Change user's password
@@ -108,16 +146,20 @@ export class AuthService {
             password: hashedPassword,
         })
 
-        return "User Updated Successfully";
+        return this.utilsService.apiResponse(
+            HttpStatus.OK,
+            null,
+            [{ message: "Password updated successfully.", property: "changePassword" }]
+        );
     }
 
     async forgotPasswordOtp(forgotPasswordOtpDto: ForgotPasswordOtpDto) {
-        
+
     }
 
     async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
 
-        if(forgotPasswordDto.otp != forgotPasswordDto.originalOtp)
+        if (forgotPasswordDto.otp != forgotPasswordDto.originalOtp)
             throw new NotFoundException('Otp not found...');
 
 
@@ -131,7 +173,7 @@ export class AuthService {
             throw new NotFoundException('User not found...');
         }
 
-        
+
         //If user exists, generate password reset link
         const expiryDate = new Date();
         expiryDate.setHours(expiryDate.getHours() + 1);
@@ -144,7 +186,7 @@ export class AuthService {
         });
         //Send the link to the user by email
         this.mailService.sendPasswordResetEmail(user.username, resetToken);
-        
+
 
         return { message: 'If this user exists, they will receive an email' };
     }
@@ -223,8 +265,7 @@ export class AuthService {
             throw new UnauthorizedException('Invalid token');
         }
 
-        try 
-        {
+        try {
             const payload = this.jwtService.verify(accessToken);
             userId = payload.userId;
             const user = await this.usersRepository.findOneBy({
@@ -234,34 +275,38 @@ export class AuthService {
             return this.utilsService.apiResponse<User>(
                 HttpStatus.OK,
                 user,
-                [{message:"The token is valid",property:"validateToken"}]
+                [{ message: "The token is valid", property: "validateToken" }]
             );
-        } 
-        catch (e) 
-        {
+        }
+        catch (e) {
             return this.utilsService.apiResponse(
                 HttpStatus.UNAUTHORIZED,
                 null,
-                [{message:"Invalid Token",property:"validateToken"}]
+                [{ message: "Invalid Token", property: "validateToken" }]
             );
         }
     }
 
-     getUserByUserId(userId: string){
+    async comparePasswords(plainPassword: string, hashedPassword: string): Promise<boolean> {
+        return await bcrypt.compare(plainPassword, hashedPassword);
+    }
+
+
+    getUserByUserId(userId: string) {
         const user: User = {
             userId: '1',
             username: 'John Doe',
             password: 'john.doe@example.com',
-          };
+        };
 
-          return this.utilsService.apiResponse(
+        return this.utilsService.apiResponse(
             HttpStatus.OK,
-            {user:user},
-            [{message:"The user is valid",property:"getUserByUserId"}]
+            { user: user },
+            [{ message: "The user is valid", property: "getUserByUserId" }]
         );
-         
+
     }
-    
+
 
 
     /* async generateUserTokens(email: string): Promise<string> {

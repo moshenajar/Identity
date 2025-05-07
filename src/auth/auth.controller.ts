@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Post, Put, Req, UnauthorizedException, UseGuards  } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Put, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { AuthCredentialsDto } from "./dtos/auth.credentials.dto";
 import { AuthGuard } from "@nestjs/passport";
@@ -29,7 +29,7 @@ export class AuthController {
     }
 
     @MessagePattern('signup')
-    async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
+    async signUp(authCredentialsDto: AuthCredentialsDto) {
         return this.authService.signUp(authCredentialsDto);
     }
 
@@ -41,11 +41,11 @@ export class AuthController {
 
     @MessagePattern('validateToken')
     async validateToken(accessToken: string) {
-        return await  this.authService.validateToken(accessToken);
+        return await this.authService.validateToken(accessToken);
     }
 
     @MessagePattern('changePassword')
-    async changePassword(data : {userId: string, changePasswordDto: ChangePasswordDto}) {
+    async changePassword(data: { userId: string, changePasswordDto: ChangePasswordDto }) {
         return this.authService.changePassword(
             data.userId,
             data.changePasswordDto.oldPassword,
@@ -54,22 +54,22 @@ export class AuthController {
     }
 
     @MessagePattern('forgotPasswordOtp')
-    async forgotPasswordOtp(data :{ forgotPasswordOtpDto: ForgotPasswordOtpDto }){
+    async forgotPasswordOtp(data: { forgotPasswordOtpDto: ForgotPasswordOtpDto }) {
         return this.authService.forgotPasswordOtp(data.forgotPasswordOtpDto);
     }
 
     @MessagePattern('forgotPassword')
-    async forgotPassword(data: { forgotPasswordDto: ForgotPasswordDto}) {
+    async forgotPassword(data: { forgotPasswordDto: ForgotPasswordDto }) {
         return this.authService.forgotPassword(data.forgotPasswordDto);
     }
 
     @MessagePattern('resetPassword')
-    async resetPassword(data: { resetPasswordDto: ResetPasswordDto}) {
+    async resetPassword(data: { resetPasswordDto: ResetPasswordDto }) {
         return this.authService.resetPassword(data.resetPasswordDto);
     }
 
     @MessagePattern('getUserByUserId')
-    async getUserByUserId(data: { userId: string}) {
+    async getUserByUserId(data: { userId: string }) {
         return this.authService.getUserByUserId(data.userId);
     }
 
@@ -81,7 +81,7 @@ export class AuthController {
     }
 
     @MessagePattern('test')
-    async test(data: { hi: string}) {
+    async test(data: { hi: string }) {
         console.log(data.hi);
         return "by";
     }
@@ -93,28 +93,28 @@ export class AuthController {
         return this.authService.signUp(authCredentialsDto);
     }*/
 
-   /* @Post('login')
-    async signIn(@Body() loginDto: LoginDto) {
-        return this.authService.login(loginDto);
-    }*/
+    /* @Post('login')
+     async signIn(@Body() loginDto: LoginDto) {
+         return this.authService.login(loginDto);
+     }*/
 
     /*@Post('refresh')
     async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
         return this.authService.refreshTokens(refreshTokenDto.refreshToken);
     }*/
 
-  /*  @UseGuards(AuthenticationGuard)
-    @Put('change-password')
-    async changePassword(
-        @Body() changePasswordDto: ChangePasswordDto,
-        @Req() req,
-    ) {
-        return this.authService.changePassword(
-            req.userId,
-            changePasswordDto.oldPassword,
-            changePasswordDto.newPassword,
-        );
-    }*/
+    /*  @UseGuards(AuthenticationGuard)
+      @Put('change-password')
+      async changePassword(
+          @Body() changePasswordDto: ChangePasswordDto,
+          @Req() req,
+      ) {
+          return this.authService.changePassword(
+              req.userId,
+              changePasswordDto.oldPassword,
+              changePasswordDto.newPassword,
+          );
+      }*/
 
     /*@Post('forgot-password')
     async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
@@ -143,6 +143,6 @@ export class AuthController {
         return user;
     }*/
 
-    
+
 
 }

@@ -17,17 +17,17 @@ import { UtilsService } from './utils/utils-service';
     providers: [AuthService],
     controllers: [AuthController]*/
     imports: [
-        PassportModule.register( {defaultStrategy: 'jwt'}),
+        PassportModule.register({ defaultStrategy: 'jwt' }),
         JwtModule.register({
             secret: 'topSecret51',
             signOptions: {
                 expiresIn: 3600
             },
         }),
-        TypeOrmModule.forFeature([User,RefreshToken])], // here we provide the TypeOrm support as usual, specifically for our UserEntity in this case
-    providers: [AuthService, MailService, JwtStrategy,UsersRepository, RefreshTokenRepository, UtilsService], // here we provide our custom repo
+        TypeOrmModule.forFeature([User, RefreshToken])], // here we provide the TypeOrm support as usual, specifically for our UserEntity in this case
+    providers: [AuthService, MailService, JwtStrategy, UsersRepository, RefreshTokenRepository, UtilsService], // here we provide our custom repo
     controllers: [AuthController],
     exports: [JwtStrategy, PassportModule]
     //exports: [AuthService, UsersRepository] // add this only if you use service and/or custom repo within another module/service
 })
-export class AuthModule {}
+export class AuthModule { }

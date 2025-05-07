@@ -4,6 +4,7 @@ export class AuthCredentialsDto {
     @IsString()
     name: string;
 
+    @IsString()2
     username: string;
 
     @IsString()
