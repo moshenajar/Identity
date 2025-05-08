@@ -1,40 +1,18 @@
-/*mport { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { AuthCredentialsDto } from "./dto/auth.credentials.dto";
-import { UserEntity } from "./user.entity";
-import { Repository } from "typeorm";
-
-@Injectable()
-export class AuthService {
-    constructor(
-        @InjectRepository(UserEntity) private readonly repo: Repository<UserEntity>,
-    ) {}
-
-    async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
-        this.repo.save(authCredentialsDto);
-    }
-}*/
-
 import { HttpStatus, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './repositories/users.repository';
 import { AuthCredentialsDto } from './dtos/auth.credentials.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { JwtPayload } from './jwt-payload.interface';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
-import { RefreshToken } from './entities/refresh-token.entity';
 import { MailService } from 'src/services/mail.service';
-import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dtos/login.dto';
 import { nanoid } from 'nanoid';
 import { UtilsService } from './utils/utils-service';
 import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ForgotPasswordOtpDto } from './dtos/forgot-password-otp.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
-import { Observable, of } from 'rxjs';
-import { token } from './model/token';
+import { Token } from './model/token';
 
 @Injectable()
 export class AuthService {
@@ -78,14 +56,11 @@ export class AuthService {
 
         if (user && (await this.comparePasswords(password, user.password))) {
             //Generate JWT tokens
-            const tokens = await this.generateUserTokens(user.userId);
+            const token = await this.generateUserTokens(user.userId);
 
-            return this.utilsService.apiResponse<token>(
+            return this.utilsService.apiResponse<Token>(
                 HttpStatus.OK,
-                {
-                    ...tokens,
-                    userId: user.userId,
-                },
+                token,
                 [{ message: "", property: "login" }]
             );
         } else {
@@ -97,8 +72,8 @@ export class AuthService {
         }
     }
 
-    async refreshToken(refreshToken: string) {
-        const token: RefreshToken = await this.refreshTokenRepository.findByRefreshTokenValid(refreshToken);
+    async refreshToken(user: User) {
+        /*const token: RefreshToken = await this.refreshTokenRepository.findByRefreshTokenValid(refreshToken);
 
         if (!token) {
             throw new UnauthorizedException('Refresh Token is invalid');
@@ -106,10 +81,14 @@ export class AuthService {
 
         const user = await this.usersRepository.findOne({
             where: { userId: token.userId }
-        });
+        });*/
 
         if (!user) {
-            throw new UnauthorizedException('Refresh Token is invalid');
+            return this.utilsService.apiResponse(
+                HttpStatus.NOT_FOUND,
+                null,
+                [{ message: "Wrong credentials.", property: "refreshToken" }]
+            );
         }
 
         return this.generateUserTokens(user.userId);
@@ -180,7 +159,7 @@ export class AuthService {
 
         const resetToken = nanoid(64);
         await this.refreshTokenRepository.create({
-            token: resetToken,
+            refreshToken: resetToken,
             userId: user.userId,
             expiryDate,
         });
@@ -194,7 +173,7 @@ export class AuthService {
     async resetPassword(resetPasswordDto: ResetPasswordDto) {
         //Find a valid reset token document
         const token = await this.refreshTokenRepository.findOneBy({
-            token: resetPasswordDto.resetToken,
+            refreshToken: resetPasswordDto.resetToken,
             expiryDate: new Date()
         })
 
@@ -222,41 +201,34 @@ export class AuthService {
 
     }
 
-    async generateUserTokens(userId) {
-        const accessToken = this.jwtService.sign({ userId }, { expiresIn: '10h' });
-        const refreshToken = uuidv4();
 
-        await this.storeRefreshToken(refreshToken, userId);
-        return {
-            accessToken,
-            refreshToken,
-        };
-    }
-
-    async storeRefreshToken(token: string, userId: string) {
+    async storeRefreshToken(refreshToken: string, userId: string) {
         // Calculate expiry date 3 days from now
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + 3);
 
-        const refreshToken = await this.refreshTokenRepository.findOneBy({
-            userId: userId
+        const refreshTokenRow = await this.refreshTokenRepository.findOneBy({
+            refreshToken: refreshToken
         })
 
-        if (refreshToken) {
-            refreshToken.expiryDate = expiryDate;
+        if (refreshTokenRow) {
+            refreshTokenRow.expiryDate = expiryDate;
             //TODO - dosnt save refresh token
-            await this.refreshTokenRepository.save(refreshToken);
+            await this.refreshTokenRepository.save(refreshTokenRow);
             return;
 
         }
 
 
-        await this.refreshTokenRepository.create({
-            token: token,
+        const refreshTokenObj = this.refreshTokenRepository.create({
+            refreshToken: refreshToken,
             userId: userId,
-            expiryDate,
+            expiryDate: expiryDate,
         });
 
+        await this.refreshTokenRepository.save(refreshTokenObj);
+
+        return;
     }
 
     async validateToken(accessToken: string) {
@@ -287,6 +259,54 @@ export class AuthService {
         }
     }
 
+    async validateRefreshToken(jwtRefreshToken: string) {
+        let userId: string = null;
+        if (!jwtRefreshToken) {
+            return this.utilsService.apiResponse(
+                HttpStatus.UNAUTHORIZED,
+                null,
+                [{ message: "Invalid Refresh Token", property: "validateRefreshToken" }]
+            );
+        }
+
+        try {
+            const payload = this.jwtService.verify(jwtRefreshToken);
+            userId = payload.userId;
+            const user = await this.usersRepository.findOneBy({
+                userId: userId
+            });
+            const dbRefreshTokenRow = await this.refreshTokenRepository.findByRefreshToken(jwtRefreshToken);
+            if (dbRefreshTokenRow)
+            {
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() - 1);
+                dbRefreshTokenRow.expiryDate = expiryDate;
+                await this.refreshTokenRepository.save(dbRefreshTokenRow);
+           
+                return this.utilsService.apiResponse<User>(
+                    HttpStatus.OK,
+                    user,
+                    [{ message: "The token is valid", property: "validateRefreshToken" }]
+                );
+            }
+            
+            return this.utilsService.apiResponse(
+                HttpStatus.UNAUTHORIZED,
+                null,
+                [{ message: "Invalid Refresh Token", property: "validateRefreshToken" }]
+            );
+        }
+        catch (e) {
+            return this.utilsService.apiResponse(
+                HttpStatus.UNAUTHORIZED,
+                null,
+                [{ message: "Invalid Refresh Token", property: "validateRefreshToken" }]
+            );
+        }
+    }
+
+
+
     async comparePasswords(plainPassword: string, hashedPassword: string): Promise<boolean> {
         return await bcrypt.compare(plainPassword, hashedPassword);
     }
@@ -309,29 +329,36 @@ export class AuthService {
 
 
 
-    /* async generateUserTokens(email: string): Promise<string> {
-         const payload: JwtPayload = { email };
-         const accessToken: string = await this.jwtService.sign(payload);
-         return accessToken;
-     }*/
+    async generateUserTokens(userId) {
+        const accessToken = await this.generateToken1hSign({ userId });
+        const refreshToken = await this.generateToken7dSign({ userId });
+        await this.storeRefreshToken(refreshToken, userId);
 
+        return  {
+           accessToken: accessToken,
+           refreshToken: refreshToken,
+           userId: userId
+        };
 
-    /*findAll(): Promise<UserEntity[]> {
-        return this.userRepository.find();
     }
 
-    // call your repo method
-    findOneByEmail(username: string): Promise<UserEntity> {
-        return this.userRepository.findByEmail(username);
+    async generateToken7dSign(payload: object) {
+        return this.jwtService.sign(payload, {
+            expiresIn: '7d', // Override default expiration
+            //expiresIn: '5m', // Override default expiration
+            algorithm: 'HS512', // Use a different algorithm
+            audience: 'your-app',
+            issuer: 'your-company',
+        });
     }
 
-    findOne(id: string): Promise<UserEntity> {
-        return this.userRepository.findOneBy({ id });
+    async generateToken1hSign(payload: object) {
+        return this.jwtService.sign(payload, {
+            expiresIn: '1h', // Override default expiration
+            algorithm: 'HS512', // Use a different algorithm
+            audience: 'your-app',
+            issuer: 'your-company',
+        });
     }
 
-    async remove(id: string): Promise<void> {
-        await this.userRepository.delete(id);
-    }*/
-
-    // your other custom methods in your service...
 }

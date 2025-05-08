@@ -15,17 +15,35 @@ export class RefreshTokenRepository extends Repository<RefreshToken> {
         super(refreshTokenRepository.target, refreshTokenRepository.manager, refreshTokenRepository.queryRunner);
     }
 
-    async findByRefreshToken(token: string): Promise<RefreshToken> {
+    async findByRefreshToken(refreshToken: string): Promise<RefreshToken | null> {
+        return this.refreshTokenRepository.findOne({
+            where: {
+                refreshToken: refreshToken,
+                expiryDate: MoreThan(new Date())
+            }
+        });
+    }
+    
+
+    async findByRefreshToken1(refreshToken: string): Promise<RefreshToken> {
         return await this.refreshTokenRepository.findOne({
-            where: { token }
+            where: { refreshToken }
         });
     }
 
 
     async findByRefreshTokenValid(refreshToken: string): Promise<RefreshToken> {
         return await this.refreshTokenRepository.findOne({
-            where: [{ token: refreshToken }, { expiryDate: Raw((alias) => `${alias} > NOW()`) }]
+            where: [{ refreshToken: refreshToken }, { expiryDate: Raw((alias) => `${alias} > NOW()`) }]
         });
     }
+
+    /*async findById(id: string): Promise<User | null> {
+        return this.userRepository
+          .createQueryBuilder('user')
+          .where('user.id = :id', { id })
+          .getOne();
+      }*/
+      
     
 }

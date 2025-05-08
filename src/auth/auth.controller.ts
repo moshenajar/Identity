@@ -35,13 +35,18 @@ export class AuthController {
 
 
     @MessagePattern('refreshToken')
-    async refreshToken(refreshTokenDto: RefreshTokenDto) {
-        return this.authService.refreshToken(refreshTokenDto.refreshToken);
+    async refreshToken(user:User) {
+        return this.authService.refreshToken(user);
     }
 
     @MessagePattern('validateToken')
     async validateToken(accessToken: string) {
         return await this.authService.validateToken(accessToken);
+    }
+
+    @MessagePattern('validateRefreshToken')
+    async validateRefreshToken(accessToken: string) {
+        return await this.authService.validateRefreshToken(accessToken);
     }
 
     @MessagePattern('changePassword')

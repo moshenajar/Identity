@@ -4,10 +4,10 @@ import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 export class RefreshToken {
 
   @PrimaryGeneratedColumn('uuid')
-  refreshTokenId: string;
+  id: string;
 
   @Column({ nullable: false })
-  token: string;
+  refreshToken: string;
 
   @Column('uuid')
   userId: string

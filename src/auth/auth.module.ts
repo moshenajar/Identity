@@ -19,9 +19,10 @@ import { UtilsService } from './utils/utils-service';
     imports: [
         PassportModule.register({ defaultStrategy: 'jwt' }),
         JwtModule.register({
-            secret: 'topSecret51',
+            secret: 'your-secret-key',
             signOptions: {
-                expiresIn: 3600
+                expiresIn: '1h',
+                algorithm: 'HS256',
             },
         }),
         TypeOrmModule.forFeature([User, RefreshToken])], // here we provide the TypeOrm support as usual, specifically for our UserEntity in this case
