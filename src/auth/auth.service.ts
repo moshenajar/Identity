@@ -13,6 +13,7 @@ import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ForgotPasswordOtpDto } from './dtos/forgot-password-otp.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { Token } from './model/token';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 @Injectable()
 export class AuthService {
@@ -55,9 +56,18 @@ export class AuthService {
         });
 
         if (user && (await this.comparePasswords(password, user.password))) {
+            //Token and Refresh Token Revocation
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() - 1);
+            await this.refreshTokenRepository
+                .createQueryBuilder()
+                .update(RefreshToken)
+                .set({ expiryDate: expiryDate })
+                .where('userId = :userId', { userId: user.userId })
+                .execute();
             //Generate JWT tokens
             const token = await this.generateUserTokens(user.userId);
-
+            
             return this.utilsService.apiResponse<Token>(
                 HttpStatus.OK,
                 token,
@@ -73,16 +83,6 @@ export class AuthService {
     }
 
     async refreshToken(user: User) {
-        /*const token: RefreshToken = await this.refreshTokenRepository.findByRefreshTokenValid(refreshToken);
-
-        if (!token) {
-            throw new UnauthorizedException('Refresh Token is invalid');
-        }
-
-        const user = await this.usersRepository.findOne({
-            where: { userId: token.userId }
-        });*/
-
         if (!user) {
             return this.utilsService.apiResponse(
                 HttpStatus.NOT_FOUND,
@@ -91,7 +91,21 @@ export class AuthService {
             );
         }
 
-        return this.generateUserTokens(user.userId);
+        const token: Token = await this.generateUserTokens(user.userId);
+
+        if (token)
+            return this.utilsService.apiResponse(
+                HttpStatus.CREATED,
+                token,
+                [{ message: "The token is created", property: "refreshToken" }]
+            );
+
+
+        return this.utilsService.apiResponse(
+            HttpStatus.NOT_FOUND,
+            null,
+            [{ message: "Wrong credentials.", property: "refreshToken" }]
+        );
     }
 
     async changePassword(userId, oldPassword: string, newPassword: string) {
@@ -276,20 +290,19 @@ export class AuthService {
                 userId: userId
             });
             const dbRefreshTokenRow = await this.refreshTokenRepository.findByRefreshToken(jwtRefreshToken);
-            if (dbRefreshTokenRow)
-            {
+            if (dbRefreshTokenRow) {
                 const expiryDate = new Date();
                 expiryDate.setDate(expiryDate.getDate() - 1);
                 dbRefreshTokenRow.expiryDate = expiryDate;
                 await this.refreshTokenRepository.save(dbRefreshTokenRow);
-           
+
                 return this.utilsService.apiResponse<User>(
                     HttpStatus.OK,
                     user,
                     [{ message: "The token is valid", property: "validateRefreshToken" }]
                 );
             }
-            
+
             return this.utilsService.apiResponse(
                 HttpStatus.UNAUTHORIZED,
                 null,
@@ -334,10 +347,10 @@ export class AuthService {
         const refreshToken = await this.generateToken7dSign({ userId });
         await this.storeRefreshToken(refreshToken, userId);
 
-        return  {
-           accessToken: accessToken,
-           refreshToken: refreshToken,
-           userId: userId
+        return {
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            userId: userId
         };
 
     }
