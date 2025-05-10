@@ -14,6 +14,7 @@ import { ForgotPasswordOtpDto } from './dtos/forgot-password-otp.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { Token } from './model/token';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { CalculationsHelper } from './helpers/calculations.helper';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
         private jwtService: JwtService,
         private mailService: MailService,
         private utilsService: UtilsService,
+        private calculationsHelper: CalculationsHelper,
     ) { }
 
     async signUp(authCredentialsDto: AuthCredentialsDto) {
@@ -67,7 +69,7 @@ export class AuthService {
                 .execute();
             //Generate JWT tokens
             const token = await this.generateUserTokens(user.userId);
-            
+
             return this.utilsService.apiResponse<Token>(
                 HttpStatus.OK,
                 token,
@@ -284,30 +286,40 @@ export class AuthService {
         }
 
         try {
+
+            //Check the integrity of the refresh token
             const payload = this.jwtService.verify(jwtRefreshToken);
             userId = payload.userId;
+
+
+            //Check the integrity of the refresh token in the databases
+            const dbRefreshTokenRow = await this.refreshTokenRepository.findByRefreshToken(jwtRefreshToken);
+            if (dbRefreshTokenRow) {
+
+                const IsExpirationDate = await this.calculationsHelper.IsExpirationDate(dbRefreshTokenRow.expiryDate);
+                if (IsExpirationDate) {
+                    throw new UnauthorizedException('Invalid Refresh token');
+                }
+            }
+
+            //Update refresh token expired
+            dbRefreshTokenRow.expiryDate = await this.calculationsHelper.ExpiryDate();;
+            await this.refreshTokenRepository.save(dbRefreshTokenRow);
+
             const user = await this.usersRepository.findOneBy({
                 userId: userId
             });
-            const dbRefreshTokenRow = await this.refreshTokenRepository.findByRefreshToken(jwtRefreshToken);
-            if (dbRefreshTokenRow) {
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() - 1);
-                dbRefreshTokenRow.expiryDate = expiryDate;
-                await this.refreshTokenRepository.save(dbRefreshTokenRow);
 
-                return this.utilsService.apiResponse<User>(
-                    HttpStatus.OK,
-                    user,
-                    [{ message: "The token is valid", property: "validateRefreshToken" }]
-                );
+            if (!user) {
+                throw new UnauthorizedException('Invalid Refresh token');
             }
 
-            return this.utilsService.apiResponse(
-                HttpStatus.UNAUTHORIZED,
-                null,
-                [{ message: "Invalid Refresh Token", property: "validateRefreshToken" }]
+            return this.utilsService.apiResponse<User>(
+                HttpStatus.OK,
+                user,
+                [{ message: "The token is valid", property: "validateRefreshToken" }]
             );
+
         }
         catch (e) {
             return this.utilsService.apiResponse(
